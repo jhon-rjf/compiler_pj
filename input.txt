@@ -1,0 +1,7 @@
+int integerNumber = 10;
+float realNumber = -34.251
+char result;
+Anu + 3;
+result = integerNumber + realNumber;
+resulta -- integerNumber + realNumber;
+a + int b + c

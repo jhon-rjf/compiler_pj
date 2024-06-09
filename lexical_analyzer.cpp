@@ -1,0 +1,815 @@
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <string>
+#include <sstream>
+#include <iomanip>
+
+using namespace std;
+
+// Function to check if the character is a digit
+bool isDigit(char ch) {
+    return (ch >= '0' && ch <= '9');
+}
+
+// Function to check if the character is a letter
+bool isLetter(char ch) {
+    return ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z'));
+}
+
+// Function to check if the character is whitespace or end of line
+bool isWhitespaceOrEOL(char ch) {
+    return (ch == ' ' || ch == '\n' || ch == '\t');
+}
+
+// FSM function to process input and tokenize it
+vector<vector<string>> FSM(const string& str) {
+    int state = 0;
+    bool isInvalid = false;
+    string currentToken;
+    vector<vector<string>> results;
+
+    for (size_t i = 0; i < str.size(); ++i) {
+        char inchar = str[i];
+
+        // Debugging output to track the state and input character
+        cout << "FSM processing char: '" << inchar << "' in state: " << state << endl;
+
+        switch (state) {
+            case 0:
+                if (isLetter(inchar)) {
+                    if (inchar == 'i') state = 14;
+                    else if (inchar == 'f') state = 17;
+                    else if (inchar == 's') state = 21;
+                    else if (inchar == 'd') state = 25;
+                    else if (inchar == 'u') state = 33;
+                    else if (inchar == 'l') state = 37;
+                    else if (inchar == 'c') state = 41;
+                    else if (inchar == 'v') state = 45;
+                    else state = 13;
+                    currentToken += inchar;
+                } else if (inchar == '+' || inchar == '-') {
+                    state = 4;
+                    currentToken += inchar;
+                } else if (isDigit(inchar)) {
+                    state = 1;
+                    currentToken += inchar;
+                } else if (inchar == '/') {
+                    state = 5;
+                    currentToken += inchar;
+                } else if (inchar == '*') {
+                    state = 9;
+                    currentToken += inchar;
+                } else if (inchar == '"') {
+                    state = 10;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({string(1, inchar), "delimiter"});
+                } else if (inchar == '=') {
+                    state = 31;
+                    currentToken += inchar;
+                } else if (isWhitespaceOrEOL(inchar)) {
+                    continue;
+                } else {
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 1:
+                if (isDigit(inchar)) {
+                    currentToken += inchar;
+                } else if (inchar == '.') {
+                    state = 2;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "Constant"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else if (isWhitespaceOrEOL(inchar)) {
+                    results.push_back({currentToken, "Constant"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    isInvalid = true;
+                    currentToken += inchar;
+                    results.push_back({currentToken, "undefined"});
+                    currentToken.clear();
+                    state = 0;
+                }
+                break;
+            case 2:
+                if (isDigit(inchar)) {
+                    state = 3;
+                    currentToken += inchar;
+                } else {
+                    isInvalid = true;
+                    currentToken += inchar;
+                    results.push_back({currentToken, "undefined"});
+                    currentToken.clear();
+                    state = 0;
+                }
+                break;
+            case 3:
+                if (isDigit(inchar)) {
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "Constant"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else if (isWhitespaceOrEOL(inchar)) {
+                    results.push_back({currentToken, "Constant"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    isInvalid = true;
+                    currentToken += inchar;
+                    results.push_back({currentToken, "undefined"});
+                    currentToken.clear();
+                    state = 0;
+                }
+                break;
+            case 4:
+                if (isDigit(inchar)) {
+                    state = 1;
+                    currentToken += inchar;
+                } else if (isWhitespaceOrEOL(inchar)) {
+                    results.push_back({currentToken, "operator"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    currentToken += inchar;
+                    results.push_back({currentToken, "undefined"});
+                    currentToken.clear();
+                    state = 0;
+                }
+                break;
+            case 5:
+                if (inchar == '*') {
+                    state = 6;
+                    currentToken += inchar;
+                } else if (isWhitespaceOrEOL(inchar) || inchar == ';' || inchar == '=') {
+                    results.push_back({currentToken, "operator"});
+                    currentToken.clear();
+                    state = 0;
+                    if (!isWhitespaceOrEOL(inchar)) {
+                        --i; // Reprocess this character
+                    }
+                } else {
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 6:
+                if (inchar == '*') {
+                    state = 7;
+                    currentToken += inchar;
+                } else if (inchar == '\n') {
+                    results.push_back({currentToken, "undefined"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    currentToken += inchar;
+                }
+                break;
+            case 7:
+                if (inchar == '*') {
+                    currentToken += inchar;
+                } else if (inchar == '/') {
+                    currentToken += inchar;
+                    results.push_back({currentToken, "comment"});
+                    currentToken.clear();
+                    state = 0;
+                } else if (inchar == '\n') {
+                    results.push_back({currentToken, "undefined"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 6;
+                    currentToken += inchar;
+                }
+                break;
+            case 9:
+                if (isWhitespaceOrEOL(inchar) || inchar == ';' || inchar == '=') {
+                    results.push_back({currentToken, "operator"});
+                    currentToken.clear();
+                    state = 0;
+                    if (!isWhitespaceOrEOL(inchar)) {
+                        --i; // Reprocess this character
+                    }
+                } else {
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 10:
+                if (inchar == '"') {
+                    state = 12;
+                    currentToken += inchar;
+                } else {
+                    state = 11;
+                    currentToken += inchar;
+                }
+                break;
+            case 11:
+                if (inchar == '"') {
+                    state = 12;
+                    currentToken += inchar;
+                    results.push_back({currentToken, "letter"});
+                    currentToken.clear();
+                    state = 0;
+                } else if (inchar == '\n') {
+                    currentToken += inchar;
+                    results.push_back({currentToken, "undefined"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    currentToken += inchar;
+                }
+                break;
+            case 12:
+                // This state should not be reachable as it's a final state
+                break;
+            case 13:
+                if (isLetter(inchar) || isDigit(inchar)) {
+                    currentToken += inchar;
+                } else if (isWhitespaceOrEOL(inchar)) {
+                    results.push_back({currentToken, "identifier"});
+                    currentToken.clear();
+                    state = 0;
+                } else if (inchar == ';' || inchar == '=' || inchar == '+') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), inchar == ';' ? "delimiter" : (inchar == '=' ? "delimiter" : "operator")});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 14:
+                if (inchar == 'n') {
+                    state = 15;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 15:
+                if (inchar == 't') {
+                    state = 16;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 16:
+                if (isLetter(inchar) || isDigit(inchar)) {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                } else if (isWhitespaceOrEOL(inchar) || inchar == ';' || inchar == '=' || inchar == '+') {
+                    results.push_back({currentToken, "Datatype"});
+                    currentToken.clear();
+                    state = 0;
+                    if (inchar == ';' || inchar == '=' || inchar == '+') {
+                        results.push_back({string(1, inchar), inchar == ';' ? "delimiter" : (inchar == '=' ? "delimiter" : "operator")});
+                    }
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 17:
+                if (inchar == 'l') {
+                    state = 18;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 18:
+                if (inchar == 'o') {
+                    state = 19;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 19:
+                if (inchar == 'a') {
+                    state = 20;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 20:
+                if (inchar == 't') {
+                    state = 16;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 21:
+                if (inchar == 'h') {
+                    state = 22;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 22:
+                if (inchar == 'o') {
+                    state = 23;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 23:
+                if (inchar == 'r') {
+                    state = 24;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 24:
+                if (inchar == 't') {
+                    state = 16;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 25:
+                if (inchar == 'o') {
+                    state = 26;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 26:
+                if (inchar == 'u') {
+                    state = 27;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 27:
+                if (inchar == 'b') {
+                    state = 28;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 28:
+                if (inchar == 'l') {
+                    state = 29;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 29:
+                if (inchar == 'e') {
+                    state = 30;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 30:
+                if (isWhitespaceOrEOL(inchar) || inchar == ';' || inchar == '=') {
+                    results.push_back({currentToken, "Datatype"});
+                    currentToken.clear();
+                    state = 0;
+                    if (inchar == ';' || inchar == '=') {
+                        --i; // Reprocess this character
+                    }
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 31:
+                if (isWhitespaceOrEOL(inchar)) {
+                    results.push_back({currentToken, "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    currentToken += inchar;
+                    results.push_back({currentToken, "undefined"});
+                    currentToken.clear();
+                    state = 0;
+                }
+                break;
+            // 추가된 상태: unsigned, long, char, void 등 처리
+            case 33: // 'u'에서 시작하는 경우
+                if (inchar == 'n') {
+                    state = 34;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 34:
+                if (inchar == 's') {
+                    state = 35;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 35:
+                if (inchar == 'i') {
+                    state = 36;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 36:
+                if (inchar == 'g') {
+                    state = 16;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 37: // 'l'에서 시작하는 경우
+                if (inchar == 'o') {
+                    state = 38;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 38:
+                if (inchar == 'n') {
+                    state = 39;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 39:
+                if (inchar == 'g') {
+                    state = 16;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 41: // 'c'에서 시작하는 경우
+                if (inchar == 'h') {
+                    state = 42;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 42:
+                if (inchar == 'a') {
+                    state = 43;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 43:
+                if (inchar == 'r') {
+                    state = 16;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 45: // 'v'에서 시작하는 경우
+                if (inchar == 'o') {
+                    state = 46;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 46:
+                if (inchar == 'i') {
+                    state = 47;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            case 47:
+                if (inchar == 'd') {
+                    state = 16;
+                    currentToken += inchar;
+                } else if (inchar == ';') {
+                    results.push_back({currentToken, "identifier"});
+                    results.push_back({string(1, inchar), "delimiter"});
+                    currentToken.clear();
+                    state = 0;
+                } else {
+                    state = 13;
+                    isInvalid = true;
+                    currentToken += inchar;
+                }
+                break;
+            default:
+                isInvalid = true;
+                currentToken += inchar;
+                break;
+        }
+    }
+
+    // Handle final token
+    if (!currentToken.empty()) {
+        string finalTokenType;
+        switch (state) {
+            case 1:
+                finalTokenType = "Constant";
+                break;
+            case 3:
+                finalTokenType = "Constant";
+                break;
+            case 4:
+                finalTokenType = "operator";
+                break;
+            case 6:
+                finalTokenType = "undefined"; // Unterminated comment
+                break;
+            case 9:
+                finalTokenType = "operator";
+                break;
+            case 12:
+                finalTokenType = "letter";
+                break;
+            case 13:
+                finalTokenType = "identifier";
+                break;
+            case 16:
+                finalTokenType = "Datatype";
+                break;
+            case 30:
+                finalTokenType = "Datatype";
+                break;
+            case 31:
+                finalTokenType = "delimiter";
+                break;
+            default:
+                finalTokenType = "undefined";
+                break;
+        }
+        results.push_back({currentToken, finalTokenType});
+    }
+
+    return results;
+}
+
+int main() {
+    // Open the input file
+    ifstream inputFile("input.txt");
+    if (!inputFile) {
+        cerr << "Unable to open input file" << endl;
+        return 1;
+    }
+
+    // Vector to store the strings read from the file
+    vector<string> inputs;
+    string line;
+
+    // Read lines from the file
+    while (getline(inputFile, line)) {
+        inputs.push_back(line);
+    }
+
+    inputFile.close();
+
+    // Open the output file
+    ofstream outputFile("lexical.txt");
+    if (!outputFile) {
+        cerr << "Unable to open output file" << endl;
+        return 1;
+    }
+
+    // Process each line and store the results in a 2D vector
+    vector<vector<string>> allResults;
+    for (const string& line : inputs) {
+        vector<vector<string>> results = FSM(line);
+        allResults.push_back({});
+        for (const auto& result : results) {
+            allResults.back().push_back(result[1]);
+        }
+    }
+
+    // Output only the second column to the file with proper line breaks
+    for (const auto& lineResults : allResults) {
+        for (const auto& result : lineResults) {
+            outputFile << result << " ";
+        }
+        outputFile << endl;
+    }
+
+    outputFile.close();
+
+    return 0;
+}
+
